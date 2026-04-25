@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Craft Night</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #F5F0E8;
+    --dark: #1A1612;
+    --amber: #C8862A;
+    --amber-light: #E8A84A;
+    --amber-dim: rgba(200,134,42,0.15);
+    --warm-gray: #8A8070;
+    --card-bg: rgba(255,255,255,0.04);
+    --border: rgba(200,134,42,0.2);
+    --font-display: 'Playfair Display', serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--dark);
+    color: var(--cream);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── noise texture overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  /* ── ambient glow ── */
+  .glow-top {
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 700px; height: 500px;
+    background: radial-gradient(ellipse, rgba(200,134,42,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { display: none; position: relative; z-index: 1; }
+  .page.active { display: block; }
+
+  /* ════════════════════════════
+     LP
+  ════════════════════════════ */
+  #page-lp {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1.5rem;
+    text-align: center;
+  }
+
+  .lp-eyebrow {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.2s forwards;
+  }
+
+  .lp-title {
+    font-family: var(--font-display);
+    font-size: clamp(64px, 12vw, 120px);
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    color: var(--cream);
+    margin-bottom: 0.5rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.4s forwards;
+  }
+
+  .lp-title em {
+    font-style: italic;
+    color: var(--amber);
+  }
+
+  .lp-date {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--warm-gray);
+    letter-spacing: 0.1em;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.5s forwards;
+  }
+
+  .lp-desc {
+    max-width: 480px;
+    font-size: 16px;
+    line-height: 1.8;
+    color: rgba(245,240,232,0.7);
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.6s forwards;
+  }
+
+  .lp-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.7s forwards;
+  }
+
+  .pill {
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 13px;
+    color: var(--warm-gray);
+  }
+
+  .btn-enter {
+    background: var(--amber);
+    color: var(--dark);
+    border: none;
+    border-radius: 100px;
+    padding: 16px 48px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: background 0.2s, transform 0.15s;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.8s forwards;
+  }
+
+  .btn-enter:hover { background: var(--amber-light); transform: scale(1.02); }
+
+  .lp-footer {
+    margin-top: 4rem;
+    font-size: 12px;
+    color: var(--warm-gray);
+    opacity: 0;
+    animation: fadeUp 0.8s 1s forwards;
+  }
+
+  /* ════════════════════════════
+     CHECKIN FLOW
+  ════════════════════════════ */
+  #page-checkin {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem;
+  }
+
+  .checkin-box {
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .step-label {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    color: var(--amber);
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  .checkin-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 400;
+    margin-bottom: 2rem;
+    line-height: 1.2;
+  }
+
+  .field-group { margin-bottom: 1.25rem; }
+
+  .field-label {
+    font-size: 12px;
+    color: var(--warm-gray);
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .field-input {
+    width: 100%;
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    color: var(--cream);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field-input:focus { border-color: var(--amber); }
+  .field-input::placeholder { color: rgba(138,128,112,0.5); }
+
+  .kw-input-row { display: flex; gap: 8px; }
+  .kw-input-row .field-input { flex: 1; }
+
+  .kw-add-btn {
+    background: var(--amber-dim);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--amber);
+    padding: 12px 20px;
+    font-size: 20px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .kw-add-btn:hover { background: rgba(200,134,42,0.25); }
+
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    min-height: 28px;
+  }
+
+  .kw-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--amber-dim);
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    padding: 4px 12px;
+    font-size: 13px;
+    color: var(--amber-light);
+  }
+
+  .kw-tag-x { cursor: pointer; opacity: 0.6; font-size: 12px; }
+  .kw-tag-x:hover { opacity: 1; }
+
+  .btn-primary {
+    width: 100%;
+    background: var(--amber);
+    color: var(--dark);
+    border: none;
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    transition: background 0.2s, opacity 0.2s;
+  }
+  .btn-primary:hover { background: var(--amber-light); }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* themes selection */
+  .themes-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
+
+  .theme-option {
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: left;
+  }
+
+  .theme-option:hover { border-color: rgba(200,134,42,0.5); background: rgba(200,134,42,0.06); }
+  .theme-option.selected { border-color: var(--amber); background: var(--amber-dim); }
+
+  .theme-option-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--cream);
+    margin-bottom: 4px;
+  }
+
+  .theme-option-desc { font-size: 13px; color: var(--warm-gray); line-height: 1.5; }
+
+  .spinner-wrap { text-align: center; padding: 2rem; color: var(--warm-gray); font-size: 14px; }
+  .spinner {
+    display: inline-block; width: 18px; height: 18px;
+    border: 2px solid rgba(200,134,42,0.3);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ════════════════════════════
+     HALL
+  ════════════════════════════ */
+  #page-hall { min-height: 100vh; padding: 0; }
+
+  .hall-header {
+    border-bottom: 0.5px solid var(--border);
+    padding: 1.25rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(26,22,18,0.85);
+  }
+
+  .hall-logo {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-style: italic;
+    color: var(--amber);
+  }
+
+  .hall-meta { font-size: 12px; color: var(--warm-gray); }
+
+  .hall-body {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* sidebar */
+  .sidebar {
+    border-right: 0.5px solid var(--border);
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+
+  .sidebar-section { margin-bottom: 2rem; }
+
+  .sidebar-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--warm-gray);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  .member-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 0.5px solid rgba(200,134,42,0.08);
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--amber-dim);
+    border: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 500; color: var(--amber);
+    flex-shrink: 0;
+  }
+
+  .member-info { flex: 1; min-width: 0; }
+  .member-name { font-size: 14px; color: var(--cream); font-weight: 500; }
+  .member-org { font-size: 11px; color: var(--warm-gray); }
+  .member-theme { font-size: 11px; color: var(--amber); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .count-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--amber-dim);
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    padding: 3px 10px;
+    font-size: 12px;
+    color: var(--amber);
+    margin-bottom: 1rem;
+  }
+
+  .count-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* main area */
+  .main-area { padding: 1.5rem 2rem; overflow-y: auto; }
+
+  /* reactions */
+  .reactions-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .reaction-btn {
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: 100px;
+    padding: 8px 16px;
+    font-size: 14px;
+    color: var(--cream);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .reaction-btn:hover { background: var(--amber-dim); border-color: var(--amber); transform: scale(1.05); }
+  .reaction-btn:active { transform: scale(0.95); }
+  .reaction-count { font-size: 12px; color: var(--warm-gray); }
+
+  /* timeline */
+  .timeline-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--warm-gray);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  .comment-input-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+  .comment-input {
+    flex: 1;
+    background: var(--card-bg);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--cream);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .comment-input:focus { border-color: var(--amber); }
+  .comment-input::placeholder { color: rgba(138,128,112,0.5); }
+
+  .comment-send {
+    background: var(--amber);
+    color: var(--dark);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .comment-send:hover { background: var(--amber-light); }
+
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+
+  .tl-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 0.5px solid rgba(200,134,42,0.06);
+    animation: fadeIn 0.4s ease;
+  }
+
+  .tl-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--amber-dim);
+    border: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--amber); flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .tl-content { flex: 1; min-width: 0; }
+
+  .tl-meta {
+    font-size: 11px;
+    color: var(--warm-gray);
+    margin-bottom: 3px;
+  }
+
+  .tl-meta strong { color: var(--cream); font-weight: 500; }
+
+  .tl-text { font-size: 14px; color: rgba(245,240,232,0.85); line-height: 1.6; }
+
+  .tl-reaction { font-size: 18px; }
+
+  .empty-tl { text-align: center; padding: 3rem 0; color: var(--warm-gray); font-size: 14px; }
+
+  /* ── animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── responsive ── */
+  @media (max-width: 640px) {
+    .hall-body { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 0.5px solid var(--border); }
+    .lp-title { font-size: 56px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="glow-top"></div>
+
+<!-- ══════ LP ══════ -->
+<div id="page-lp" class="page active">
+  <p class="lp-eyebrow">An evening of ideas & code</p>
+  <h1 class="lp-title">Craft<br><em>Night</em></h1>
+  <p class="lp-date">May 2025 &nbsp;·&nbsp; Tokyo</p>
+  <p class="lp-desc">
+    ビールを片手に、AIと一緒に何かを作る夜。<br>
+    コードが書けなくてもOK。デザイナーでも、企画でも、エンジニアでも。<br>
+    アイデアさえあれば、誰でも何かを生み出せる時代です。
+  </p>
+  <div class="lp-pills">
+    <span class="pill">コーディング経験不要</span>
+    <span class="pill">どの業界の方でも</span>
+    <span class="pill">クラフトビール付き</span>
+  </div>
+  <button class="btn-enter" onclick="showPage('checkin')">会場に入る</button>
+  <p class="lp-footer">参加者のデータはリアルタイムで全員に共有されます</p>
+</div>
+
+<!-- ══════ CHECKIN ══════ -->
+<div id="page-checkin" class="page">
+  <div class="checkin-box">
+    <div id="step-info">
+      <p class="step-label">Step 1 of 2 &nbsp;·&nbsp; あなたのこと</p>
+      <h2 class="checkin-title">今夜の<em style="font-family:var(--font-display);font-style:italic;color:var(--amber)">あなた</em>を教えてください</h2>
+
+      <div class="field-group">
+        <label class="field-label">名前</label>
+        <input class="field-input" id="ci-name" type="text" placeholder="田中 太郎" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">所属（会社・チームなど）</label>
+        <input class="field-input" id="ci-org" type="text" placeholder="株式会社○○ / フリーランス" />
+      </div>
+      <div class="field-group">
+        <label class="field-label">今日のキーワード（複数OK）</label>
+        <div class="kw-input-row">
+          <input class="field-input" id="ci-kw" type="text" placeholder="眠い、猫、月曜日..." />
+          <button class="kw-add-btn" onclick="addKw()">+</button>
+        </div>
+        <div class="tags-row" id="kw-tags"></div>
+      </div>
+
+      <button class="btn-primary" id="step1-btn" onclick="goToStep2()">お題を生成する →</button>
+    </div>
+
+    <div id="step-themes" style="display:none;">
+      <p class="step-label">Step 2 of 2 &nbsp;·&nbsp; お題を選ぶ</p>
+      <h2 class="checkin-title">今夜挑戦する<em style="font-family:var(--font-display);font-style:italic;color:var(--amber)">お題</em>はどれ？</h2>
+      <p style="font-size:13px;color:var(--warm-gray);margin-bottom:1.5rem;">AIがあなたのキーワードからお題を作りました。一つ選んでください。</p>
+      <div id="themes-loading" class="spinner-wrap"><span class="spinner"></span>生成中...</div>
+      <div id="themes-grid" class="themes-grid" style="display:none;"></div>
+      <button class="btn-primary" id="checkin-btn" onclick="doCheckin()" disabled>チェックインする</button>
+      <button style="width:100%;background:none;border:none;color:var(--warm-gray);font-size:13px;margin-top:12px;cursor:pointer;padding:8px;" onclick="backToStep1()">← キーワードを変える</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ HALL ══════ -->
+<div id="page-hall" class="page">
+  <div class="hall-header">
+    <div class="hall-logo">Craft Night</div>
+    <div class="hall-meta" id="hall-meta">読み込み中...</div>
+  </div>
+  <div class="hall-body">
+    <!-- sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">参加者</div>
+        <div class="count-badge">
+          <div class="count-dot"></div>
+          <span id="member-count">0</span> 人が参加中
+        </div>
+        <div id="members-list"></div>
+      </div>
+    </div>
+
+    <!-- main -->
+    <div class="main-area">
+      <!-- reactions -->
+      <div class="sidebar-label" style="margin-bottom:12px;">リアクション</div>
+      <div class="reactions-bar" id="reactions-bar"></div>
+
+      <!-- timeline -->
+      <div class="timeline-label" style="margin-top:1.5rem;">タイムライン</div>
+      <div class="comment-input-row">
+        <input class="comment-input" id="comment-input" type="text" placeholder="コメントを入力..." />
+        <button class="comment-send" onclick="sendComment()">送る</button>
+      </div>
+      <div class="timeline" id="timeline">
+        <div class="empty-tl">まだ投稿はありません。最初のコメントを送ろう！</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_PREFIX = 'craftnight-v1-';
+const MEMBERS_KEY = STORAGE_PREFIX + 'members';
+const TIMELINE_KEY = STORAGE_PREFIX + 'timeline';
+const REACTIONS_KEY = STORAGE_PREFIX + 'reactions';
+
+const REACTION_DEFS = [
+  { emoji: '🍺', label: 'かんぱい' },
+  { emoji: '🔥', label: 'アツい' },
+  { emoji: '😂', label: 'ウケる' },
+  { emoji: '👏', label: 'すごい' },
+  { emoji: '🤯', label: 'やばい' },
+  { emoji: '✨', label: 'いい感じ' },
+];
+
+let myName = '';
+let myOrg = '';
+let myTheme = '';
+let keywords = [];
+let generatedThemes = [];
+let selectedThemeIdx = -1;
+let members = [];
+let timeline = [];
+let reactions = {};
+let pollTimer = null;
+
+/* ── navigation ── */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (id === 'hall') startPolling();
+}
+
+/* ── step 1 ── */
+const kwInput = document.getElementById('ci-kw');
+kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') addKw(); });
+
+function addKw() {
+  const val = kwInput.value.trim();
+  if (!val) return;
+  val.split(/[、,，\s]+/).filter(Boolean).forEach(w => {
+    if (!keywords.includes(w)) keywords.push(w);
+  });
+  kwInput.value = '';
+  renderKwTags();
+}
+
+function removeKw(kw) {
+  keywords = keywords.filter(k => k !== kw);
+  renderKwTags();
+}
+
+function renderKwTags() {
+  const c = document.getElementById('kw-tags');
+  c.innerHTML = keywords.map(kw =>
+    `<span class="kw-tag">${kw}<span class="kw-tag-x" onclick="removeKw('${kw}')">✕</span></span>`
+  ).join('');
+}
+
+async function goToStep2() {
+  myName = document.getElementById('ci-name').value.trim();
+  myOrg = document.getElementById('ci-org').value.trim();
+  if (!myName) { alert('名前を入力してください'); return; }
+  if (keywords.length === 0) { alert('キーワードを1つ以上入れてください'); return; }
+
+  document.getElementById('step-info').style.display = 'none';
+  document.getElementById('step-themes').style.display = 'block';
+  document.getElementById('themes-loading').style.display = 'block';
+  document.getElementById('themes-grid').style.display = 'none';
+  document.getElementById('checkin-btn').disabled = true;
+  selectedThemeIdx = -1;
+
+  await generateThemes();
+}
+
+function backToStep1() {
+  document.getElementById('step-themes').style.display = 'none';
+  document.getElementById('step-info').style.display = 'block';
+}
+
+async function generateThemes() {
+  const prompt = `あなたはバイブコーディングナイトのファシリテーターです。
+以下のキーワードをヒントに、30〜40分で作れる面白いミニアプリのお題を3つ考えてください。
+
+キーワード：${keywords.join('、')}
+
+条件：
+- AIツールを使えば非エンジニアでも作れる難易度
+- 笑えるか、使いたくなるか、どちらかであること
+- 業界・職種を問わず共感できるテーマ
+
+以下のJSON形式のみで返してください（前置き・説明・バッククォート不要）：
+[{"title":"お題名（20字以内）","desc":"どんなアプリか（40字以内）"},{"title":"...","desc":"..."},{"title":"...","desc":"..."}]`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content.map(b => b.text || '').join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    generatedThemes = JSON.parse(clean);
+  } catch(e) {
+    generatedThemes = [
+      { title: '今日の気分を診断するアプリ', desc: 'キーワードを入れると今日のあなたの状態を診断' },
+      { title: '3分で決まるランチ決定機', desc: '優柔不断な同僚に送りつけるランチ提案AI' },
+      { title: '自分の分身AIを作る', desc: '自分の口癖・判断パターンを再現したチャットbot' },
+    ];
+  }
+
+  document.getElementById('themes-loading').style.display = 'none';
+  const grid = document.getElementById('themes-grid');
+  grid.style.display = 'flex';
+  grid.innerHTML = generatedThemes.map((t, i) =>
+    `<div class="theme-option" onclick="selectTheme(${i})">
+      <div class="theme-option-title">${t.title}</div>
+      <div class="theme-option-desc">${t.desc}</div>
+    </div>`
+  ).join('');
+}
+
+function selectTheme(i) {
+  selectedThemeIdx = i;
+  document.querySelectorAll('.theme-option').forEach((el, idx) => {
+    el.classList.toggle('selected', idx === i);
+  });
+  document.getElementById('checkin-btn').disabled = false;
+  myTheme = generatedThemes[i].title;
+}
+
+/* ── checkin ── */
+async function doCheckin() {
+  if (selectedThemeIdx < 0) return;
+
+  const existing = await loadData(MEMBERS_KEY);
+  const newMember = { name: myName, org: myOrg, theme: myTheme, at: Date.now() };
+  const updated = [...existing.filter(m => m.name !== myName), newMember];
+  await saveData(MEMBERS_KEY, updated);
+
+  const tl = await loadData(TIMELINE_KEY);
+  tl.push({ type: 'join', name: myName, org: myOrg, theme: myTheme, at: Date.now() });
+  await saveData(TIMELINE_KEY, tl);
+
+  showPage('hall');
+  await loadAll();
+}
+
+/* ── hall ── */
+async function loadAll() {
+  members = await loadData(MEMBERS_KEY);
+  timeline = await loadData(TIMELINE_KEY);
+  reactions = await loadData(REACTIONS_KEY, {});
+  renderMembers();
+  renderTimeline();
+  renderReactions();
+  document.getElementById('hall-meta').textContent = `${members.length}人が参加中`;
+}
+
+function renderMembers() {
+  document.getElementById('member-count').textContent = members.length;
+  const list = document.getElementById('members-list');
+  if (members.length === 0) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--warm-gray);padding:8px 0;">まだ誰もいません</div>';
+    return;
+  }
+  list.innerHTML = [...members].reverse().map(m =>
+    `<div class="member-item">
+      <div class="avatar">${m.name.slice(0,2)}</div>
+      <div class="member-info">
+        <div class="member-name">${m.name}</div>
+        <div class="member-org">${m.org || ''}</div>
+        <div class="member-theme">${m.theme}</div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function renderReactions() {
+  const bar = document.getElementById('reactions-bar');
+  bar.innerHTML = REACTION_DEFS.map(r => {
+    const count = (reactions[r.emoji] || 0);
+    return `<button class="reaction-btn" onclick="addReaction('${r.emoji}')">
+      <span style="font-size:18px;">${r.emoji}</span>
+      <span>${r.label}</span>
+      ${count > 0 ? `<span class="reaction-count">${count}</span>` : ''}
+    </button>`;
+  }).join('');
+}
+
+async function addReaction(emoji) {
+  const r = await loadData(REACTIONS_KEY, {});
+  r[emoji] = (r[emoji] || 0) + 1;
+  await saveData(REACTIONS_KEY, r);
+
+  const tl = await loadData(TIMELINE_KEY);
+  tl.push({ type: 'reaction', name: myName || '匿名', emoji, at: Date.now() });
+  await saveData(TIMELINE_KEY, tl);
+
+  reactions = r;
+  timeline = tl;
+  renderReactions();
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const el = document.getElementById('timeline');
+  if (timeline.length === 0) {
+    el.innerHTML = '<div class="empty-tl">まだ投稿はありません。最初のコメントを送ろう！</div>';
+    return;
+  }
+  el.innerHTML = [...timeline].reverse().map(item => {
+    const time = new Date(item.at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    if (item.type === 'join') {
+      return `<div class="tl-item">
+        <div class="tl-avatar">${item.name.slice(0,2)}</div>
+        <div class="tl-content">
+          <div class="tl-meta"><strong>${item.name}</strong>（${item.org || ''}）&nbsp;${time}</div>
+          <div class="tl-text">チェックイン！今夜のお題：「${item.theme}」</div>
+        </div>
+      </div>`;
+    } else if (item.type === 'reaction') {
+      return `<div class="tl-item">
+        <div class="tl-avatar">${item.name.slice(0,2)}</div>
+        <div class="tl-content">
+          <div class="tl-meta"><strong>${item.name}</strong>&nbsp;${time}</div>
+          <div class="tl-text tl-reaction">${item.emoji}</div>
+        </div>
+      </div>`;
+    } else {
+      return `<div class="tl-item">
+        <div class="tl-avatar">${item.name.slice(0,2)}</div>
+        <div class="tl-content">
+          <div class="tl-meta"><strong>${item.name}</strong>&nbsp;${time}</div>
+          <div class="tl-text">${item.text}</div>
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+const commentInput = document.getElementById('comment-input');
+commentInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendComment(); });
+
+async function sendComment() {
+  const text = commentInput.value.trim();
+  if (!text) return;
+  commentInput.value = '';
+  const tl = await loadData(TIMELINE_KEY);
+  tl.push({ type: 'comment', name: myName || '匿名', text, at: Date.now() });
+  await saveData(TIMELINE_KEY, tl);
+  timeline = tl;
+  renderTimeline();
+}
+
+/* ── polling ── */
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(loadAll, 8000);
+}
+
+/* ── storage helpers ── */
+async function loadData(key, fallback = []) {
+  try {
+    const r = await window.storage.get(key, true);
+    return r && r.value ? JSON.parse(r.value) : fallback;
+  } catch(e) { return fallback; }
+}
+
+async function saveData(key, val) {
+  try { await window.storage.set(key, JSON.stringify(val), true); } catch(e) {}
+}
+</script>
+</body>
+</html>
