@@ -668,7 +668,7 @@ const SUPABASE_URL = 'https://ybzofqpgcqxkcwtwfhor.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inliem9mcXBnY3F4a2N3dHdmaG9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNjcxNDEsImV4cCI6MjA5Mjc0MzE0MX0.44deQz5HaHc1Vrh0OeczfgCWxpS_Qom7afWvQS1mglE';
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/generate-topics`;
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const REACTIONS = [
   { e: '🍺', label: 'かんぱい' },
@@ -846,7 +846,7 @@ async function finalizeCheckin() {
     myAlias = alias;
 
     // Save participant
-    const { error: pErr } = await supabase.from('participants').insert([{
+    const { error: pErr } = await sb.from('participants').insert([{
       name: myName,
       org: myOrg,
       alias: myAlias,
@@ -860,11 +860,11 @@ async function finalizeCheckin() {
       description: t.desc,
       tag: t.tag,
     }));
-    const { error: tErr } = await supabase.from('topics').insert(topicRows);
+    const { error: tErr } = await sb.from('topics').insert(topicRows);
     if (tErr) throw tErr;
 
     // Save timeline entry
-    const { error: lErr } = await supabase.from('timeline').insert([{
+    const { error: lErr } = await sb.from('timeline').insert([{
       kind: 'checkin',
       who: myName,
       text: 'チェックインしました',
@@ -888,9 +888,9 @@ async function finalizeCheckin() {
 // ════════════════════════════════════
 async function loadAll() {
   const [pRes, tRes, lRes] = await Promise.all([
-    supabase.from('participants').select('*').order('created_at', { ascending: false }),
-    supabase.from('topics').select('*').order('created_at', { ascending: false }),
-    supabase.from('timeline').select('*').order('created_at', { ascending: false }).limit(50),
+    sb.from('participants').select('*').order('created_at', { ascending: false }),
+    sb.from('topics').select('*').order('created_at', { ascending: false }),
+    sb.from('timeline').select('*').order('created_at', { ascending: false }).limit(50),
   ]);
   members = pRes.data || [];
   allTopics = tRes.data || [];
@@ -979,7 +979,7 @@ async function sendComment() {
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
-  const { error } = await supabase.from('timeline').insert([{
+  const { error } = await sb.from('timeline').insert([{
     kind: 'comment',
     who: myName,
     text,
@@ -988,7 +988,7 @@ async function sendComment() {
 }
 
 async function sendReaction(emoji) {
-  const { error } = await supabase.from('timeline').insert([{
+  const { error } = await sb.from('timeline').insert([{
     kind: 'reaction',
     who: myName,
     emoji,
@@ -1001,7 +1001,7 @@ async function sendReaction(emoji) {
 // REALTIME SUBSCRIPTIONS
 // ════════════════════════════════════
 function setupRealtime() {
-  supabase.channel('craft-night')
+  sb.channel('craft-night')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants' }, () => loadAll())
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'topics' }, () => loadAll())
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'timeline' }, () => loadAll())
