@@ -104,6 +104,21 @@
   }
   .btn-ghost:hover { background: rgba(255,255,255,.04); filter: none; transform: none; }
 
+  .back-btn {
+    background: transparent;
+    border: none;
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-family: var(--sans);
+    cursor: pointer;
+    padding: 8px 12px;
+    margin-bottom: 24px;
+    border-radius: 8px;
+    transition: color .15s, background .15s;
+    align-self: flex-start;
+  }
+  .back-btn:hover { color: var(--ink); background: rgba(255,255,255,.04); }
+
   /* INPUTS */
   .input {
     appearance: none; width: 100%;
@@ -576,6 +591,7 @@
 <!-- CHECKIN -->
 <div id="page-checkin" class="page" style="display:none;">
   <div class="checkin-box">
+    <button class="back-btn" onclick="showPage('lp')">← 戻る</button>
     <div class="step-label">STEP 02</div>
     <h2 class="checkin-title">チェックイン</h2>
     <p class="checkin-desc">3項目だけ。あとはAIが今夜のテーマを考えてくれます。</p>
@@ -588,12 +604,12 @@
         </div>
         <div>
           <label class="field-label">所属</label>
-          <input class="input" id="ci-org" placeholder="BC ○○グループ" />
+          <input class="input" id="ci-org" placeholder="任意" />
         </div>
         <div>
           <label class="field-label">キーワード <span class="hint">あなたが気になっていること・好きなこと</span></label>
           <div class="tags-input" id="kw-tags-input">
-            <input id="ci-kw" placeholder="例：散歩、餃子、Vim" />
+            <input id="ci-kw" placeholder="例：散歩、餃子、猫" />
           </div>
           <div class="field-hint">これをもとにAIが今夜のお題を提案します</div>
         </div>
@@ -605,6 +621,7 @@
 
 <!-- TOPICS -->
 <div id="page-topics" class="page" style="display:none;">
+  <button class="back-btn" onclick="showPage('checkin')">← 戻る</button>
   <div class="step-label">STEP 03</div>
   <h2 class="checkin-title" style="font-size:48px;margin-bottom:16px;">本日のテーマ案</h2>
   <p class="checkin-desc" style="margin-bottom:22px;">
@@ -628,7 +645,7 @@
     <div style="display:flex;align-items:center;gap:14px;">
       <div class="pill">
         <span class="pulse" style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);"></span>
-        <span id="member-count">0</span>名 ご来店中
+        <span id="member-count">0</span>名 ご来訪中
       </div>
       <div class="mono" style="font-size:11px;color:var(--ink-dim);letter-spacing:.15em;" id="live-time">LIVE</div>
     </div>
@@ -714,12 +731,20 @@ function goToCheckin() { showPage('checkin'); }
 // ════════════════════════════════════
 const kwInput = document.getElementById('ci-kw');
 const kwContainer = document.getElementById('kw-tags-input');
+let isComposing = false;
+
+kwInput.addEventListener('compositionstart', () => { isComposing = true; });
+kwInput.addEventListener('compositionend', () => {
+  // IME確定直後は少し待ってからフラグを下ろす（Chrome対策）
+  setTimeout(() => { isComposing = false; }, 50);
+});
 
 kwInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    addKw();
-  }
+  // IME変換中のEnterは無視
+  if (e.key !== 'Enter') return;
+  if (isComposing || e.isComposing || e.keyCode === 229) return;
+  e.preventDefault();
+  addKw();
 });
 
 function addKw() {
@@ -854,13 +879,13 @@ async function finalizeCheckin() {
     }]);
     if (pErr) throw pErr;
 
-    // Save all generated topics (not tied to user)
-    const topicRows = generatedTopics.map(t => ({
-      title: t.title,
-      description: t.desc,
-      tag: t.tag,
-    }));
-    const { error: tErr } = await sb.from('topics').insert(topicRows);
+    // Save only the selected topic
+    const selectedTopic = generatedTopics[selectedTopicIdx];
+    const { error: tErr } = await sb.from('topics').insert([{
+      title: selectedTopic.title,
+      description: selectedTopic.desc,
+      tag: selectedTopic.tag,
+    }]);
     if (tErr) throw tErr;
 
     // Save timeline entry
@@ -946,10 +971,9 @@ function renderTimeline() {
     const c = hueFor(item.who);
     let body = '';
     if (item.kind === 'checkin') {
-      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><span style="color:var(--ink-dim);"> がご来店</span>`;
+      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><span style="color:var(--ink-dim);"> がご来訪</span>`;
     } else if (item.kind === 'reaction') {
-      const tcol = item.target ? hueFor(item.target) : 'var(--ink-dim)';
-      body = `<span style="font-size:14px;margin-right:4px;">${item.emoji}</span><b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><span style="color:var(--ink-dim);"> → </span><b style="color:${tcol};">${item.target || 'みんな'}</b>`;
+      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;font-size:18px;">${item.emoji}</div>`;
     } else if (item.kind === 'comment') {
       body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;color:var(--ink);">${item.text}</div>`;
     }
@@ -992,7 +1016,6 @@ async function sendReaction(emoji) {
     kind: 'reaction',
     who: myName,
     emoji,
-    target: 'みんな',
   }]);
   if (error) console.error(error);
 }
