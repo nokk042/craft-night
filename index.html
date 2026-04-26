@@ -5,902 +5,1029 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Craft Night</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans+JP:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --cream: #F5F0E8;
-    --dark: #1A1612;
-    --amber: #C8862A;
-    --amber-light: #E8A84A;
-    --amber-dim: rgba(200,134,42,0.15);
-    --warm-gray: #8A8070;
-    --card-bg: rgba(255,255,255,0.04);
-    --border: rgba(200,134,42,0.2);
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'DM Sans', sans-serif;
+    --bg: #161210;
+    --bg-warm: #231a14;
+    --ink: #f3e7d0;
+    --ink-dim: rgba(243,231,208,0.65);
+    --ink-faint: rgba(243,231,208,0.28);
+    --accent: #5b8a4a;
+    --accent-soft: #406233;
+    --cream: #e8d8b6;
+    --rule: rgba(91,138,74,0.3);
+    --accent-glow: rgba(91,138,74,0.55);
+    --accent-rule: rgba(91,138,74,0.32);
+    --serif: 'Playfair Display','DM Serif Display',Georgia,serif;
+    --display: 'Zen Kaku Gothic New','IBM Plex Sans JP','Hiragino Kaku Gothic ProN',system-ui,sans-serif;
+    --sans: 'IBM Plex Sans JP','Zen Kaku Gothic New','Hiragino Kaku Gothic ProN',system-ui,sans-serif;
+    --mono: 'IBM Plex Mono',ui-monospace,monospace;
   }
 
-  html { scroll-behavior: smooth; }
-
+  html, body { height: 100%; }
   body {
-    background: var(--dark);
-    color: var(--cream);
-    font-family: var(--font-body);
-    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
     overflow-x: hidden;
+    min-height: 100vh;
+    position: relative;
   }
 
-  /* ── noise texture overlay ── */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+    opacity: .32;
+    mix-blend-mode: soft-light;
     pointer-events: none;
-    z-index: 0;
-    opacity: 0.6;
+    z-index: 1;
   }
 
-  /* ── ambient glow ── */
-  .glow-top {
+  body::after {
+    content: '';
     position: fixed;
-    top: -200px; left: 50%;
-    transform: translateX(-50%);
-    width: 700px; height: 500px;
-    background: radial-gradient(ellipse, rgba(200,134,42,0.12) 0%, transparent 70%);
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 45% at 50% 0%, var(--accent-glow) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 40% at 0% 100%, rgba(0,0,0,.4), transparent 60%);
     pointer-events: none;
-    z-index: 0;
+    z-index: 1;
   }
 
-  .page { display: none; position: relative; z-index: 1; }
-  .page.active { display: block; }
+  .page { position: relative; z-index: 2; min-height: 100vh; }
 
-  /* ════════════════════════════
-     LP
-  ════════════════════════════ */
-  #page-lp {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem 1.5rem;
-    text-align: center;
+  .display { font-family: var(--display); font-weight: 700; letter-spacing: -.02em; }
+  .mono { font-family: var(--mono); letter-spacing: .04em; }
+  .serif { font-family: var(--serif); }
+
+  /* PILLS & TAGS */
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border: .5px solid var(--rule);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--cream);
+    background: rgba(255,255,255,.02);
+  }
+
+  /* BUTTONS */
+  .btn {
+    appearance: none; border: none;
+    background: var(--accent); color: #0d130a;
+    padding: 16px 30px;
+    font-family: var(--sans); font-weight: 700;
+    font-size: 16px; letter-spacing: .04em;
+    cursor: pointer; border-radius: 999px;
+    box-shadow:
+      0 0 0 1px var(--accent-soft),
+      0 0 32px var(--accent-glow),
+      0 8px 24px rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(255,255,255,.35);
+    transition: transform .15s, box-shadow .2s, filter .15s;
+  }
+  .btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; filter: grayscale(0.3); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border: .5px solid var(--rule);
+    box-shadow: none;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,.04); filter: none; transform: none; }
+
+  /* INPUTS */
+  .input {
+    appearance: none; width: 100%;
+    background: rgba(0,0,0,.3);
+    border: .5px solid var(--rule);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .input::placeholder { color: var(--ink-faint); }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-rule); }
+
+  /* CARDS */
+  .card {
+    background: linear-gradient(180deg, #241a14, #181210);
+    border: .5px solid var(--rule);
+    border-radius: 14px;
+  }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 11px;
+    background: rgba(255,255,255,.04);
+    border: .5px solid var(--rule);
+    border-radius: 999px;
+    font-size: 12.5px;
+    color: var(--cream);
+  }
+  .tag-x { opacity: .55; cursor: pointer; font-size: 11px; }
+  .tag-x:hover { opacity: 1; }
+
+  .glow-text {
+    text-shadow:
+      0 0 6px var(--accent-glow),
+      0 0 28px rgba(91,138,74,.45),
+      0 0 60px rgba(91,138,74,.25);
+  }
+
+  @keyframes flicker { 0%,18%,22%,25%,53%,57%,100% { opacity: 1; } 20%,24%,55% { opacity: .62; } }
+  .flicker { animation: flicker 6s infinite; }
+
+  @keyframes rise { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .rise { animation: rise .5s cubic-bezier(.2,.7,.3,1) both; }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+
+  /* PAGES */
+  #page-lp, #page-checkin, #page-topics {
+    display: flex; flex-direction: column;
+    padding: 48px 56px;
+  }
+
+  /* LP */
+  #page-lp { justify-content: space-between; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; }
+  .logo-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, var(--accent), var(--accent-soft));
+    box-shadow: 0 0 14px var(--accent-glow);
+  }
+
+  .lp-hero {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 40px 20px;
   }
 
   .lp-eyebrow {
-    font-family: var(--font-body);
+    font-family: var(--mono);
     font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    color: var(--amber);
-    text-transform: uppercase;
-    margin-bottom: 1.5rem;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.2s forwards;
+    color: var(--accent);
+    letter-spacing: .34em;
+    margin-bottom: 22px;
   }
 
   .lp-title {
-    font-family: var(--font-display);
-    font-size: clamp(64px, 12vw, 120px);
-    font-weight: 700;
-    line-height: 0.9;
-    letter-spacing: -0.02em;
-    color: var(--cream);
-    margin-bottom: 0.5rem;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.4s forwards;
+    font-family: var(--serif);
+    font-weight: 500;
+    letter-spacing: -.015em;
+    font-size: clamp(72px, 14vw, 184px);
+    line-height: .95;
+    color: var(--ink);
+    white-space: nowrap;
   }
+  .lp-title em { color: var(--accent); font-style: italic; font-weight: 500; }
 
-  .lp-title em {
-    font-style: italic;
-    color: var(--amber);
-  }
-
-  .lp-date {
-    font-family: var(--font-body);
-    font-size: 13px;
-    color: var(--warm-gray);
-    letter-spacing: 0.1em;
-    margin-bottom: 3rem;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.5s forwards;
+  .lp-sub {
+    font-family: var(--display);
+    font-size: clamp(20px, 3vw, 30px);
+    line-height: 1.5;
+    margin: 36px 0 18px;
+    color: var(--cream); font-weight: 500;
+    max-width: 760px;
   }
 
   .lp-desc {
-    max-width: 480px;
-    font-size: 16px;
-    line-height: 1.8;
-    color: rgba(245,240,232,0.7);
-    margin-bottom: 3rem;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.6s forwards;
+    font-size: 16px; line-height: 1.9;
+    color: var(--ink-dim); max-width: 560px;
+    margin-bottom: 26px;
   }
 
-  .lp-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 3rem;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.7s forwards;
+  .lp-pills { display: flex; gap: 8px; margin-bottom: 36px; flex-wrap: wrap; justify-content: center; }
+
+  .lp-footer-icons {
+    display: flex; justify-content: center; gap: 18px;
+    opacity: .5; padding-top: 18px;
+    border-top: .5px solid var(--rule);
   }
 
-  .pill {
-    border: 0.5px solid var(--border);
-    border-radius: 100px;
-    padding: 6px 16px;
-    font-size: 13px;
-    color: var(--warm-gray);
-  }
-
-  .btn-enter {
-    background: var(--amber);
-    color: var(--dark);
-    border: none;
-    border-radius: 100px;
-    padding: 16px 48px;
-    font-family: var(--font-body);
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    letter-spacing: 0.05em;
-    transition: background 0.2s, transform 0.15s;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.8s forwards;
-  }
-
-  .btn-enter:hover { background: var(--amber-light); transform: scale(1.02); }
-
-  .lp-footer {
-    margin-top: 4rem;
-    font-size: 12px;
-    color: var(--warm-gray);
-    opacity: 0;
-    animation: fadeUp 0.8s 1s forwards;
-  }
-
-  /* ════════════════════════════
-     CHECKIN FLOW
-  ════════════════════════════ */
-  #page-checkin {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 1.5rem;
-  }
-
-  .checkin-box {
-    width: 100%;
-    max-width: 520px;
-  }
-
+  /* CHECKIN */
+  #page-checkin { justify-content: center; min-height: 100vh; }
+  .checkin-box { max-width: 620px; margin: 0 auto; width: 100%; }
   .step-label {
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    color: var(--amber);
-    text-transform: uppercase;
-    margin-bottom: 0.75rem;
+    font-family: var(--mono);
+    font-size: 11px; color: var(--accent);
+    letter-spacing: .3em;
+    margin-bottom: 14px;
   }
-
-  .checkin-title {
-    font-family: var(--font-display);
-    font-size: 32px;
-    font-weight: 400;
-    margin-bottom: 2rem;
-    line-height: 1.2;
-  }
-
-  .field-group { margin-bottom: 1.25rem; }
+  .checkin-title { font-family: var(--display); font-size: 52px; line-height: 1.1; margin-bottom: 10px; font-weight: 700; }
+  .checkin-desc { font-size: 14.5px; color: var(--ink-dim); margin-bottom: 36px; line-height: 1.7; }
 
   .field-label {
-    font-size: 12px;
-    color: var(--warm-gray);
-    letter-spacing: 0.08em;
-    margin-bottom: 6px;
-    display: block;
+    font-family: var(--mono);
+    font-size: 11px; letter-spacing: .18em;
+    color: var(--cream); display: block;
+    margin-bottom: 8px; font-weight: 600;
   }
+  .field-label .hint { color: var(--ink-faint); font-weight: 400; margin-left: 6px; letter-spacing: 0; }
 
-  .field-input {
-    width: 100%;
-    background: var(--card-bg);
-    border: 0.5px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 16px;
-    font-family: var(--font-body);
-    font-size: 15px;
-    color: var(--cream);
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .field-input:focus { border-color: var(--amber); }
-  .field-input::placeholder { color: rgba(138,128,112,0.5); }
-
-  .kw-input-row { display: flex; gap: 8px; }
-  .kw-input-row .field-input { flex: 1; }
-
-  .kw-add-btn {
-    background: var(--amber-dim);
-    border: 0.5px solid var(--border);
-    border-radius: 8px;
-    color: var(--amber);
-    padding: 12px 20px;
-    font-size: 20px;
-    cursor: pointer;
-    transition: background 0.2s;
-    flex-shrink: 0;
-  }
-  .kw-add-btn:hover { background: rgba(200,134,42,0.25); }
-
-  .tags-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 10px;
-    min-height: 28px;
-  }
-
-  .kw-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--amber-dim);
-    border: 0.5px solid var(--border);
-    border-radius: 100px;
-    padding: 4px 12px;
-    font-size: 13px;
-    color: var(--amber-light);
-  }
-
-  .kw-tag-x { cursor: pointer; opacity: 0.6; font-size: 12px; }
-  .kw-tag-x:hover { opacity: 1; }
-
-  .btn-primary {
-    width: 100%;
-    background: var(--amber);
-    color: var(--dark);
-    border: none;
-    border-radius: 8px;
-    padding: 14px;
-    font-family: var(--font-body);
-    font-size: 15px;
-    font-weight: 500;
-    cursor: pointer;
-    margin-top: 1.5rem;
-    transition: background 0.2s, opacity 0.2s;
-  }
-  .btn-primary:hover { background: var(--amber-light); }
-  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
-
-  /* themes selection */
-  .themes-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
-
-  .theme-option {
-    background: var(--card-bg);
-    border: 0.5px solid var(--border);
+  .tags-input {
+    background: rgba(0,0,0,.3);
+    border: .5px solid var(--rule);
     border-radius: 10px;
-    padding: 14px 16px;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    text-align: left;
-  }
-
-  .theme-option:hover { border-color: rgba(200,134,42,0.5); background: rgba(200,134,42,0.06); }
-  .theme-option.selected { border-color: var(--amber); background: var(--amber-dim); }
-
-  .theme-option-title {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--cream);
-    margin-bottom: 4px;
-  }
-
-  .theme-option-desc { font-size: 13px; color: var(--warm-gray); line-height: 1.5; }
-
-  .spinner-wrap { text-align: center; padding: 2rem; color: var(--warm-gray); font-size: 14px; }
-  .spinner {
-    display: inline-block; width: 18px; height: 18px;
-    border: 2px solid rgba(200,134,42,0.3);
-    border-top-color: var(--amber);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    vertical-align: middle; margin-right: 8px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ════════════════════════════
-     HALL
-  ════════════════════════════ */
-  #page-hall { min-height: 100vh; padding: 0; }
-
-  .hall-header {
-    border-bottom: 0.5px solid var(--border);
-    padding: 1.25rem 2rem;
-    display: flex;
+    padding: 10px 12px;
+    min-height: 48px;
+    display: flex; flex-wrap: wrap; gap: 6px;
     align-items: center;
-    justify-content: space-between;
-    backdrop-filter: blur(10px);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: rgba(26,22,18,0.85);
+  }
+  .tags-input input {
+    flex: 1; min-width: 120px;
+    background: transparent; border: none; outline: none;
+    color: var(--ink); font-size: 14px;
+    font-family: inherit;
+  }
+  .tags-input input::placeholder { color: var(--ink-faint); }
+
+  .field-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 8px;
   }
 
-  .hall-logo {
-    font-family: var(--font-display);
-    font-size: 20px;
-    font-style: italic;
-    color: var(--amber);
+  /* TOPICS */
+  #page-topics { padding: 40px 56px; }
+  .topic-card {
+    padding: 24px 28px;
+    cursor: pointer;
+    transition: all .25s;
+    border: .5px solid var(--rule);
+    background: linear-gradient(180deg, #241a14, #181210);
+    border-radius: 14px;
+    margin-bottom: 12px;
+  }
+  .topic-card:hover { border-color: rgba(91,138,74,0.6); }
+  .topic-card.selected {
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 30px var(--accent-glow);
+    background: linear-gradient(180deg, #2a201a, #1a130f);
+  }
+  .topic-row { display: flex; align-items: flex-start; gap: 24px; }
+  .topic-num {
+    width: 54px; height: 54px; flex-shrink: 0;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display);
+    font-size: 22px; font-weight: 700;
+    color: var(--ink-dim);
+  }
+  .topic-card.selected .topic-num {
+    background: linear-gradient(135deg, var(--accent-glow), rgba(255,255,255,0.04));
+    border-color: var(--accent);
+    color: var(--accent);
+    text-shadow: 0 0 12px var(--accent-glow);
+  }
+  .topic-tag {
+    font-family: var(--mono);
+    font-size: 10px; color: var(--ink-faint);
+    letter-spacing: .2em; margin-bottom: 6px;
+  }
+  .topic-title {
+    font-family: var(--display); font-size: 22px;
+    line-height: 1.35; margin-bottom: 8px; font-weight: 600;
+  }
+  .topic-desc {
+    font-size: 13.5px; line-height: 1.75;
+    color: var(--ink-dim); max-width: 560px;
+  }
+  .topic-radio {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: 1.5px solid var(--rule);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 6px;
+  }
+  .topic-card.selected .topic-radio {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px var(--accent-glow);
+  }
+  .topic-radio-dot {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: none;
+  }
+  .topic-card.selected .topic-radio-dot { display: block; }
+
+  .topics-actions {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 24px; padding-top: 20px;
+    border-top: .5px solid var(--rule);
   }
 
-  .hall-meta { font-size: 12px; color: var(--warm-gray); }
-
-  .hall-body {
+  /* VENUE */
+  #page-venue {
     display: grid;
-    grid-template-columns: 280px 1fr;
-    min-height: calc(100vh - 60px);
+    grid-template-columns: 240px 1fr 340px;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
   }
+  .venue-header {
+    grid-column: 1 / -1;
+    padding: 16px 28px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: .5px solid var(--rule);
+  }
+  .venue-title {
+    font-family: var(--display);
+    font-size: 20px; font-weight: 600;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .venue-title em { color: var(--accent); font-style: normal; }
 
-  /* sidebar */
-  .sidebar {
-    border-right: 0.5px solid var(--border);
-    padding: 1.5rem;
+  .venue-sidebar {
+    border-right: .5px solid var(--rule);
+    padding: 18px 14px;
     overflow-y: auto;
   }
-
-  .sidebar-section { margin-bottom: 2rem; }
-
-  .sidebar-label {
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    color: var(--warm-gray);
-    text-transform: uppercase;
-    margin-bottom: 1rem;
+  .section-mono-label {
+    font-family: var(--mono);
+    font-size: 10px; color: var(--accent);
+    letter-spacing: .25em;
+    padding: 0 6px 12px;
+    font-weight: 600;
   }
 
   .member-item {
-    display: flex;
+    display: flex; gap: 10px;
+    padding: 10px 6px;
     align-items: flex-start;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 0.5px solid rgba(200,134,42,0.08);
-    animation: fadeIn 0.4s ease;
+    border-bottom: .5px solid rgba(91,138,74,0.08);
+    animation: rise .4s ease;
   }
-
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
-  .avatar {
-    width: 32px; height: 32px;
+  .member-icon {
+    width: 36px; height: 36px;
     border-radius: 50%;
-    background: var(--amber-dim);
-    border: 0.5px solid var(--border);
+    background: linear-gradient(180deg, #2a1f17, #16100c);
+    border: 1px solid;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 500; color: var(--amber);
     flex-shrink: 0;
+    font-size: 14px; font-weight: 600;
+  }
+  .member-name { font-size: 13px; line-height: 1.3; font-weight: 600; }
+  .member-alias {
+    font-size: 11px; margin-left: 2px; font-weight: 400;
+  }
+  .member-org {
+    font-family: var(--mono);
+    font-size: 9px; color: var(--ink-faint);
+    margin-top: 3px;
   }
 
-  .member-info { flex: 1; min-width: 0; }
-  .member-name { font-size: 14px; color: var(--cream); font-weight: 500; }
-  .member-org { font-size: 11px; color: var(--warm-gray); }
-  .member-theme { font-size: 11px; color: var(--amber); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  .count-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    background: var(--amber-dim);
-    border: 0.5px solid var(--border);
-    border-radius: 100px;
-    padding: 3px 10px;
-    font-size: 12px;
-    color: var(--amber);
-    margin-bottom: 1rem;
+  .venue-main {
+    padding: 22px 32px;
+    overflow-y: auto;
   }
-
-  .count-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--amber);
-    animation: pulse 2s ease-in-out infinite;
+  .venue-main-title {
+    font-family: var(--display);
+    font-size: 28px; font-weight: 600;
+    margin: 4px 0 18px;
   }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .venue-main-title em { color: var(--accent); font-style: normal; }
 
-  /* main area */
-  .main-area { padding: 1.5rem 2rem; overflow-y: auto; }
-
-  /* reactions */
-  .reactions-bar {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 1.5rem;
+  .topics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
+  .topic-tile {
+    padding: 14px 16px;
+    background: linear-gradient(180deg, #241a14, #181210);
+    border: .5px solid var(--rule);
+    border-radius: 14px;
+    animation: rise .4s ease;
+  }
+  .topic-tile-num {
+    font-family: var(--mono);
+    font-size: 9.5px; color: var(--ink-faint);
+    letter-spacing: .18em;
+    margin-bottom: 6px;
+  }
+  .topic-tile-title { font-size: 13.5px; line-height: 1.5; font-weight: 500; }
+  .topic-tile-desc { font-size: 11.5px; line-height: 1.5; color: var(--ink-dim); margin-top: 4px; }
 
-  .reaction-btn {
-    background: var(--card-bg);
-    border: 0.5px solid var(--border);
-    border-radius: 100px;
+  .venue-timeline {
+    border-left: .5px solid var(--rule);
+    display: flex; flex-direction: column;
+    height: 100%;
+  }
+  .timeline-header {
+    padding: 14px 18px;
+    border-bottom: .5px solid var(--rule);
+  }
+  .timeline-list {
+    flex: 1;
+    overflow-y: auto;
     padding: 8px 16px;
-    font-size: 14px;
-    color: var(--cream);
+    min-height: 0;
+  }
+  .tl-item {
+    padding: 9px 4px;
+    border-bottom: .5px dashed var(--rule);
+    display: flex; gap: 10px;
+    align-items: flex-start;
+  }
+  .tl-time {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink-faint);
+    min-width: 34px; padding-top: 2px;
+  }
+  .tl-body { flex: 1; font-size: 12.5px; line-height: 1.55; }
+  .tl-who { font-weight: 700; }
+
+  .timeline-input-area {
+    padding: 10px 14px 14px;
+    border-top: .5px solid var(--rule);
+  }
+  .reactions-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .reaction-btn {
+    background: rgba(255,255,255,0.04);
+    border: .5px solid var(--rule);
+    padding: 8px 4px;
     cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-    display: flex; align-items: center; gap: 6px;
+    color: var(--ink);
+    font-size: 14px;
+    border-radius: 8px;
+    font-family: inherit;
+    transition: background .12s, transform .12s;
   }
-
-  .reaction-btn:hover { background: var(--amber-dim); border-color: var(--amber); transform: scale(1.05); }
+  .reaction-btn:hover { background: rgba(255,255,255,0.08); }
   .reaction-btn:active { transform: scale(0.95); }
-  .reaction-count { font-size: 12px; color: var(--warm-gray); }
-
-  /* timeline */
-  .timeline-label {
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    color: var(--warm-gray);
-    text-transform: uppercase;
-    margin-bottom: 1rem;
+  .reaction-btn-label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink-faint);
+    margin-left: 1px;
   }
 
-  .comment-input-row { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+  .comment-row { display: flex; gap: 6px; }
   .comment-input {
     flex: 1;
-    background: var(--card-bg);
-    border: 0.5px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-family: var(--font-body);
-    font-size: 14px;
-    color: var(--cream);
+    background: rgba(0,0,0,0.3);
+    border: .5px solid var(--rule);
+    padding: 9px 14px;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 13px;
     outline: none;
-    transition: border-color 0.2s;
+    border-radius: 999px;
   }
-  .comment-input:focus { border-color: var(--amber); }
-  .comment-input::placeholder { color: rgba(138,128,112,0.5); }
-
+  .comment-input:focus { border-color: var(--accent); }
   .comment-send {
-    background: var(--amber);
-    color: var(--dark);
+    padding: 9px 18px;
+    font-size: 12px;
+    background: var(--accent);
+    color: #0d130a;
     border: none;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 999px;
+    font-weight: 700;
     cursor: pointer;
-    flex-shrink: 0;
-    transition: background 0.2s;
-  }
-  .comment-send:hover { background: var(--amber-light); }
-
-  .timeline { display: flex; flex-direction: column; gap: 0; }
-
-  .tl-item {
-    display: flex;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 0.5px solid rgba(200,134,42,0.06);
-    animation: fadeIn 0.4s ease;
   }
 
-  .tl-avatar {
-    width: 28px; height: 28px;
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(91,138,74,0.3);
+    border-top-color: var(--accent);
     border-radius: 50%;
-    background: var(--amber-dim);
-    border: 0.5px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; color: var(--amber); flex-shrink: 0;
-    margin-top: 1px;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
   }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-  .tl-content { flex: 1; min-width: 0; }
-
-  .tl-meta {
-    font-size: 11px;
-    color: var(--warm-gray);
-    margin-bottom: 3px;
-  }
-
-  .tl-meta strong { color: var(--cream); font-weight: 500; }
-
-  .tl-text { font-size: 14px; color: rgba(245,240,232,0.85); line-height: 1.6; }
-
-  .tl-reaction { font-size: 18px; }
-
-  .empty-tl { text-align: center; padding: 3rem 0; color: var(--warm-gray); font-size: 14px; }
-
-  /* ── animations ── */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ── responsive ── */
-  @media (max-width: 640px) {
-    .hall-body { grid-template-columns: 1fr; }
-    .sidebar { border-right: none; border-bottom: 0.5px solid var(--border); }
-    .lp-title { font-size: 56px; }
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    #page-venue { grid-template-columns: 1fr; height: auto; }
+    .venue-sidebar, .venue-timeline { border: none; border-bottom: .5px solid var(--rule); }
+    .topics-grid { grid-template-columns: 1fr; }
+    #page-lp, #page-checkin, #page-topics { padding: 32px 20px; }
   }
 </style>
 </head>
 <body>
 
-<div class="glow-top"></div>
-
-<!-- ══════ LP ══════ -->
-<div id="page-lp" class="page active">
-  <p class="lp-eyebrow">An evening of ideas & code</p>
-  <h1 class="lp-title">Craft<br><em>Night</em></h1>
-  <p class="lp-date">May 2025 &nbsp;·&nbsp; Tokyo</p>
-  <p class="lp-desc">
-    ビールを片手に、AIと一緒に何かを作る夜。<br>
-    コードが書けなくてもOK。デザイナーでも、企画でも、エンジニアでも。<br>
-    アイデアさえあれば、誰でも何かを生み出せる時代です。
-  </p>
-  <div class="lp-pills">
-    <span class="pill">コーディング経験不要</span>
-    <span class="pill">どの業界の方でも</span>
-    <span class="pill">クラフトビール付き</span>
+<!-- LP -->
+<div id="page-lp" class="page">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-dot"></div>
+      <div class="display" style="font-size:18px;">Craft Night</div>
+    </div>
+    <div class="pill">
+      <span class="pulse" style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);"></span>
+      受付中 · 2026 May
+    </div>
   </div>
-  <button class="btn-enter" onclick="showPage('checkin')">会場に入る</button>
-  <p class="lp-footer">参加者のデータはリアルタイムで全員に共有されます</p>
+
+  <div class="lp-hero">
+    <div class="lp-eyebrow">VIBE-CODING NIGHT · NO.001</div>
+    <h1 class="lp-title glow-text flicker">Craft <em>Night.</em></h1>
+    <p class="lp-sub">クラフトビール片手に、クラフトする夜。</p>
+    <p class="lp-desc">
+      作れるかどうかより、やってみたいかどうか。<br>
+      デザイナーでも、企画でも、エンジニアでも、ようこそ。
+    </p>
+    <div class="lp-pills">
+      <span class="pill">コーディング経験不要</span>
+      <span class="pill">どの業界の方でも</span>
+      <span class="pill">好きな飲み物持参</span>
+    </div>
+    <button class="btn" style="font-size:18px;padding:18px 40px;" onclick="goToCheckin()">チェックイン →</button>
+  </div>
+
+  <div class="lp-footer-icons">
+    <span style="font-size:24px;">🍺</span>
+    <span style="font-size:24px;">🍻</span>
+    <span style="font-size:24px;">🍷</span>
+    <span style="font-size:24px;">🥃</span>
+    <span style="font-size:24px;">🍶</span>
+  </div>
 </div>
 
-<!-- ══════ CHECKIN ══════ -->
-<div id="page-checkin" class="page">
+<!-- CHECKIN -->
+<div id="page-checkin" class="page" style="display:none;">
   <div class="checkin-box">
-    <div id="step-info">
-      <p class="step-label">Step 1 of 2 &nbsp;·&nbsp; あなたのこと</p>
-      <h2 class="checkin-title">今夜の<em style="font-family:var(--font-display);font-style:italic;color:var(--amber)">あなた</em>を教えてください</h2>
+    <div class="step-label">STEP 02</div>
+    <h2 class="checkin-title">チェックイン</h2>
+    <p class="checkin-desc">3項目だけ。あとはAIが今夜のテーマを考えてくれます。</p>
 
-      <div class="field-group">
-        <label class="field-label">名前</label>
-        <input class="field-input" id="ci-name" type="text" placeholder="田中 太郎" />
-      </div>
-      <div class="field-group">
-        <label class="field-label">所属（会社・チームなど）</label>
-        <input class="field-input" id="ci-org" type="text" placeholder="株式会社○○ / フリーランス" />
-      </div>
-      <div class="field-group">
-        <label class="field-label">今日のキーワード（複数OK）</label>
-        <div class="kw-input-row">
-          <input class="field-input" id="ci-kw" type="text" placeholder="眠い、猫、月曜日..." />
-          <button class="kw-add-btn" onclick="addKw()">+</button>
+    <div class="card" style="padding:32px 34px;">
+      <div style="display:flex;flex-direction:column;gap:22px;">
+        <div>
+          <label class="field-label">名前</label>
+          <input class="input" id="ci-name" placeholder="田中" />
         </div>
-        <div class="tags-row" id="kw-tags"></div>
+        <div>
+          <label class="field-label">所属</label>
+          <input class="input" id="ci-org" placeholder="BC ○○グループ" />
+        </div>
+        <div>
+          <label class="field-label">キーワード <span class="hint">あなたが気になっていること・好きなこと</span></label>
+          <div class="tags-input" id="kw-tags-input">
+            <input id="ci-kw" placeholder="例：散歩、餃子、Vim" />
+          </div>
+          <div class="field-hint">これをもとにAIが今夜のお題を提案します</div>
+        </div>
+        <button class="btn" id="generate-btn" onclick="generateTopics()">本日のテーマ案を生成する →</button>
       </div>
-
-      <button class="btn-primary" id="step1-btn" onclick="goToStep2()">お題を生成する →</button>
-    </div>
-
-    <div id="step-themes" style="display:none;">
-      <p class="step-label">Step 2 of 2 &nbsp;·&nbsp; お題を選ぶ</p>
-      <h2 class="checkin-title">今夜挑戦する<em style="font-family:var(--font-display);font-style:italic;color:var(--amber)">お題</em>はどれ？</h2>
-      <p style="font-size:13px;color:var(--warm-gray);margin-bottom:1.5rem;">AIがあなたのキーワードからお題を作りました。一つ選んでください。</p>
-      <div id="themes-loading" class="spinner-wrap"><span class="spinner"></span>生成中...</div>
-      <div id="themes-grid" class="themes-grid" style="display:none;"></div>
-      <button class="btn-primary" id="checkin-btn" onclick="doCheckin()" disabled>チェックインする</button>
-      <button style="width:100%;background:none;border:none;color:var(--warm-gray);font-size:13px;margin-top:12px;cursor:pointer;padding:8px;" onclick="backToStep1()">← キーワードを変える</button>
     </div>
   </div>
 </div>
 
-<!-- ══════ HALL ══════ -->
-<div id="page-hall" class="page">
-  <div class="hall-header">
-    <div class="hall-logo">Craft Night</div>
-    <div class="hall-meta" id="hall-meta">読み込み中...</div>
+<!-- TOPICS -->
+<div id="page-topics" class="page" style="display:none;">
+  <div class="step-label">STEP 03</div>
+  <h2 class="checkin-title" style="font-size:48px;margin-bottom:16px;">本日のテーマ案</h2>
+  <p class="checkin-desc" style="margin-bottom:22px;">
+    AIが3つ用意しました。気になるものをひとつ選んでください。<br>
+    みんなでテーマを持ち寄った中で、好きなテーマで遊んでみましょう〜
+  </p>
+  <div id="topics-list"></div>
+  <div class="topics-actions">
+    <button class="btn btn-ghost" onclick="generateTopics()">↻ もう一度生成</button>
+    <button class="btn" id="finalize-btn" onclick="finalizeCheckin()" disabled>これで進む →</button>
   </div>
-  <div class="hall-body">
-    <!-- sidebar -->
-    <div class="sidebar">
-      <div class="sidebar-section">
-        <div class="sidebar-label">参加者</div>
-        <div class="count-badge">
-          <div class="count-dot"></div>
-          <span id="member-count">0</span> 人が参加中
-        </div>
-        <div id="members-list"></div>
-      </div>
+</div>
+
+<!-- VENUE -->
+<div id="page-venue" class="page" style="display:none;">
+  <div class="venue-header">
+    <div class="venue-title">
+      <div class="logo-dot"></div>
+      Craft Night <em>vol.001</em>
     </div>
-
-    <!-- main -->
-    <div class="main-area">
-      <!-- reactions -->
-      <div class="sidebar-label" style="margin-bottom:12px;">リアクション</div>
-      <div class="reactions-bar" id="reactions-bar"></div>
-
-      <!-- timeline -->
-      <div class="timeline-label" style="margin-top:1.5rem;">タイムライン</div>
-      <div class="comment-input-row">
-        <input class="comment-input" id="comment-input" type="text" placeholder="コメントを入力..." />
-        <button class="comment-send" onclick="sendComment()">送る</button>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="pill">
+        <span class="pulse" style="width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);"></span>
+        <span id="member-count">0</span>名 ご来店中
       </div>
-      <div class="timeline" id="timeline">
-        <div class="empty-tl">まだ投稿はありません。最初のコメントを送ろう！</div>
+      <div class="mono" style="font-size:11px;color:var(--ink-dim);letter-spacing:.15em;" id="live-time">LIVE</div>
+    </div>
+  </div>
+
+  <div class="venue-sidebar">
+    <div class="section-mono-label">参加者</div>
+    <div id="members-list"></div>
+  </div>
+
+  <div class="venue-main">
+    <div class="mono" style="font-size:10px;color:var(--accent);letter-spacing:.25em;font-weight:600;">本日のテーマ</div>
+    <h3 class="venue-main-title">みんなのテーマ<em>案</em></h3>
+    <div id="topics-grid" class="topics-grid"></div>
+  </div>
+
+  <div class="venue-timeline">
+    <div class="timeline-header">
+      <div class="mono" style="font-size:10px;color:var(--accent);letter-spacing:.25em;font-weight:600;">タイムライン · LIVE</div>
+    </div>
+    <div class="timeline-list" id="timeline-list"></div>
+    <div class="timeline-input-area">
+      <div class="reactions-grid" id="reactions-grid"></div>
+      <div class="comment-row">
+        <input class="comment-input" id="comment-input" placeholder="ひとこと…" />
+        <button class="comment-send" onclick="sendComment()">送る</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-const STORAGE_PREFIX = 'craftnight-v1-';
-const MEMBERS_KEY = STORAGE_PREFIX + 'members';
-const TIMELINE_KEY = STORAGE_PREFIX + 'timeline';
-const REACTIONS_KEY = STORAGE_PREFIX + 'reactions';
+// ════════════════════════════════════
+// CONFIGURATION
+// ════════════════════════════════════
+const SUPABASE_URL = 'https://ybzofqpgcqxkcwtwfhor.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inliem9mcXBnY3F4a2N3dHdmaG9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNjcxNDEsImV4cCI6MjA5Mjc0MzE0MX0.44deQz5HaHc1Vrh0OeczfgCWxpS_Qom7afWvQS1mglE';
+const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/generate-topics`;
 
-const REACTION_DEFS = [
-  { emoji: '🍺', label: 'かんぱい' },
-  { emoji: '🔥', label: 'アツい' },
-  { emoji: '😂', label: 'ウケる' },
-  { emoji: '👏', label: 'すごい' },
-  { emoji: '🤯', label: 'やばい' },
-  { emoji: '✨', label: 'いい感じ' },
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const REACTIONS = [
+  { e: '🍺', label: 'かんぱい' },
+  { e: '🔥', label: 'アツい' },
+  { e: '😂', label: 'ウケる' },
+  { e: '👏', label: 'すごい' },
+  { e: '🤯', label: 'やばい' },
+  { e: '✨', label: 'いい感じ' },
 ];
 
-let myName = '';
-let myOrg = '';
-let myTheme = '';
-let keywords = [];
-let generatedThemes = [];
-let selectedThemeIdx = -1;
-let members = [];
-let timeline = [];
-let reactions = {};
-let pollTimer = null;
-
-/* ── navigation ── */
-function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + id).classList.add('active');
-  if (id === 'hall') startPolling();
+const HUES = ['#67e8ff', '#ffb04a', '#ff9bb8', '#a4d977', '#d9a45f', '#c9a3ff', '#ffd479', '#7fd3c5'];
+function hueFor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return HUES[h % HUES.length];
 }
 
-/* ── step 1 ── */
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+let myName = '';
+let myOrg = '';
+let myAlias = '';
+let myKeywords = [];
+let generatedTopics = [];
+let selectedTopicIdx = -1;
+let members = [];
+let allTopics = [];
+let timeline = [];
+
+// ════════════════════════════════════
+// PAGE NAVIGATION
+// ════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.getElementById('page-' + id).style.display = id === 'venue' ? 'grid' : 'flex';
+}
+
+function goToCheckin() { showPage('checkin'); }
+
+// ════════════════════════════════════
+// KEYWORDS INPUT
+// ════════════════════════════════════
 const kwInput = document.getElementById('ci-kw');
-kwInput.addEventListener('keydown', e => { if (e.key === 'Enter') addKw(); });
+const kwContainer = document.getElementById('kw-tags-input');
+
+kwInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addKw();
+  }
+});
 
 function addKw() {
   const val = kwInput.value.trim();
   if (!val) return;
   val.split(/[、,，\s]+/).filter(Boolean).forEach(w => {
-    if (!keywords.includes(w)) keywords.push(w);
+    if (!myKeywords.includes(w)) myKeywords.push(w);
   });
   kwInput.value = '';
-  renderKwTags();
+  renderKeywords();
 }
 
 function removeKw(kw) {
-  keywords = keywords.filter(k => k !== kw);
-  renderKwTags();
+  myKeywords = myKeywords.filter(k => k !== kw);
+  renderKeywords();
 }
 
-function renderKwTags() {
-  const c = document.getElementById('kw-tags');
-  c.innerHTML = keywords.map(kw =>
-    `<span class="kw-tag">${kw}<span class="kw-tag-x" onclick="removeKw('${kw}')">✕</span></span>`
-  ).join('');
+function renderKeywords() {
+  // Remove existing tags but keep input
+  kwContainer.querySelectorAll('.tag').forEach(t => t.remove());
+  myKeywords.forEach(kw => {
+    const span = document.createElement('span');
+    span.className = 'tag';
+    span.innerHTML = `${kw}<span class="tag-x">×</span>`;
+    span.querySelector('.tag-x').addEventListener('click', () => removeKw(kw));
+    kwContainer.insertBefore(span, kwInput);
+  });
 }
 
-async function goToStep2() {
+// ════════════════════════════════════
+// GENERATE TOPICS (via Edge Function)
+// ════════════════════════════════════
+async function generateTopics() {
   myName = document.getElementById('ci-name').value.trim();
   myOrg = document.getElementById('ci-org').value.trim();
   if (!myName) { alert('名前を入力してください'); return; }
-  if (keywords.length === 0) { alert('キーワードを1つ以上入れてください'); return; }
+  if (myKeywords.length === 0) { alert('キーワードを1つ以上入れてください'); return; }
 
-  document.getElementById('step-info').style.display = 'none';
-  document.getElementById('step-themes').style.display = 'block';
-  document.getElementById('themes-loading').style.display = 'block';
-  document.getElementById('themes-grid').style.display = 'none';
-  document.getElementById('checkin-btn').disabled = true;
-  selectedThemeIdx = -1;
-
-  await generateThemes();
-}
-
-function backToStep1() {
-  document.getElementById('step-themes').style.display = 'none';
-  document.getElementById('step-info').style.display = 'block';
-}
-
-async function generateThemes() {
-  const prompt = `あなたはバイブコーディングナイトのファシリテーターです。
-以下のキーワードをヒントに、30〜40分で作れる面白いミニアプリのお題を3つ考えてください。
-
-キーワード：${keywords.join('、')}
-
-条件：
-- AIツールを使えば非エンジニアでも作れる難易度
-- 笑えるか、使いたくなるか、どちらかであること
-- 業界・職種を問わず共感できるテーマ
-
-以下のJSON形式のみで返してください（前置き・説明・バッククォート不要）：
-[{"title":"お題名（20字以内）","desc":"どんなアプリか（40字以内）"},{"title":"...","desc":"..."},{"title":"...","desc":"..."}]`;
+  const btn = document.getElementById('generate-btn');
+  const finalizeBtn = document.getElementById('finalize-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>生成中...';
+  if (finalizeBtn) finalizeBtn.disabled = true;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(EDGE_FUNCTION_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 500,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({ type: 'topics', keywords: myKeywords }),
     });
-    const data = await res.json();
-    const text = data.content.map(b => b.text || '').join('');
-    const clean = text.replace(/```json|```/g, '').trim();
-    generatedThemes = JSON.parse(clean);
-  } catch(e) {
-    generatedThemes = [
-      { title: '今日の気分を診断するアプリ', desc: 'キーワードを入れると今日のあなたの状態を診断' },
-      { title: '3分で決まるランチ決定機', desc: '優柔不断な同僚に送りつけるランチ提案AI' },
-      { title: '自分の分身AIを作る', desc: '自分の口癖・判断パターンを再現したチャットbot' },
-    ];
-  }
 
-  document.getElementById('themes-loading').style.display = 'none';
-  const grid = document.getElementById('themes-grid');
-  grid.style.display = 'flex';
-  grid.innerHTML = generatedThemes.map((t, i) =>
-    `<div class="theme-option" onclick="selectTheme(${i})">
-      <div class="theme-option-title">${t.title}</div>
-      <div class="theme-option-desc">${t.desc}</div>
-    </div>`
-  ).join('');
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Server error: ${text}`);
+    }
+
+    const data = await res.json();
+    generatedTopics = data.topics;
+    selectedTopicIdx = -1;
+    renderGeneratedTopics();
+    showPage('topics');
+  } catch (e) {
+    console.error(e);
+    alert('生成に失敗しました。もう一度お試しください。\n' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '本日のテーマ案を生成する →';
+  }
 }
 
-function selectTheme(i) {
-  selectedThemeIdx = i;
-  document.querySelectorAll('.theme-option').forEach((el, idx) => {
+function renderGeneratedTopics() {
+  const list = document.getElementById('topics-list');
+  list.innerHTML = generatedTopics.map((t, i) => `
+    <div class="topic-card rise" style="animation-delay:${i*80}ms;" onclick="selectTopic(${i})" data-idx="${i}">
+      <div class="topic-row">
+        <div class="topic-num">${String(i + 1).padStart(2, '0')}</div>
+        <div style="flex:1;">
+          <div class="topic-tag">${(t.tag || '').toUpperCase()}</div>
+          <div class="topic-title">${t.title}</div>
+          <div class="topic-desc">${t.desc}</div>
+        </div>
+        <div class="topic-radio"><div class="topic-radio-dot"></div></div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('finalize-btn').disabled = true;
+}
+
+function selectTopic(i) {
+  selectedTopicIdx = i;
+  document.querySelectorAll('.topic-card').forEach((el, idx) => {
     el.classList.toggle('selected', idx === i);
   });
-  document.getElementById('checkin-btn').disabled = false;
-  myTheme = generatedThemes[i].title;
+  document.getElementById('finalize-btn').disabled = false;
 }
 
-/* ── checkin ── */
-async function doCheckin() {
-  if (selectedThemeIdx < 0) return;
+// ════════════════════════════════════
+// FINALIZE CHECKIN (save to Supabase)
+// ════════════════════════════════════
+async function finalizeCheckin() {
+  if (selectedTopicIdx < 0) return;
+  const finalizeBtn = document.getElementById('finalize-btn');
+  finalizeBtn.disabled = true;
+  finalizeBtn.innerHTML = '<span class="spinner"></span>処理中...';
 
-  const existing = await loadData(MEMBERS_KEY);
-  const newMember = { name: myName, org: myOrg, theme: myTheme, at: Date.now() };
-  const updated = [...existing.filter(m => m.name !== myName), newMember];
-  await saveData(MEMBERS_KEY, updated);
+  try {
+    // Generate alias via Edge Function
+    let alias = myName;
+    try {
+      const aliasRes = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+        },
+        body: JSON.stringify({ type: 'alias', name: myName, keywords: myKeywords }),
+      });
+      const aliasData = await aliasRes.json();
+      if (aliasData.alias) alias = aliasData.alias.replace(/['"「」『』]/g, '').trim();
+    } catch (e) { console.warn('alias generation failed:', e); }
+    myAlias = alias;
 
-  const tl = await loadData(TIMELINE_KEY);
-  tl.push({ type: 'join', name: myName, org: myOrg, theme: myTheme, at: Date.now() });
-  await saveData(TIMELINE_KEY, tl);
+    // Save participant
+    const { error: pErr } = await supabase.from('participants').insert([{
+      name: myName,
+      org: myOrg,
+      alias: myAlias,
+      keywords: myKeywords,
+    }]);
+    if (pErr) throw pErr;
 
-  showPage('hall');
-  await loadAll();
+    // Save all generated topics (not tied to user)
+    const topicRows = generatedTopics.map(t => ({
+      title: t.title,
+      description: t.desc,
+      tag: t.tag,
+    }));
+    const { error: tErr } = await supabase.from('topics').insert(topicRows);
+    if (tErr) throw tErr;
+
+    // Save timeline entry
+    const { error: lErr } = await supabase.from('timeline').insert([{
+      kind: 'checkin',
+      who: myName,
+      text: 'チェックインしました',
+    }]);
+    if (lErr) throw lErr;
+
+    showPage('venue');
+    await loadAll();
+    setupRealtime();
+    startClock();
+  } catch (e) {
+    console.error(e);
+    alert('チェックインに失敗しました\n' + e.message);
+    finalizeBtn.disabled = false;
+    finalizeBtn.innerHTML = 'これで進む →';
+  }
 }
 
-/* ── hall ── */
+// ════════════════════════════════════
+// VENUE: Load + Render
+// ════════════════════════════════════
 async function loadAll() {
-  members = await loadData(MEMBERS_KEY);
-  timeline = await loadData(TIMELINE_KEY);
-  reactions = await loadData(REACTIONS_KEY, {});
+  const [pRes, tRes, lRes] = await Promise.all([
+    supabase.from('participants').select('*').order('created_at', { ascending: false }),
+    supabase.from('topics').select('*').order('created_at', { ascending: false }),
+    supabase.from('timeline').select('*').order('created_at', { ascending: false }).limit(50),
+  ]);
+  members = pRes.data || [];
+  allTopics = tRes.data || [];
+  timeline = lRes.data || [];
   renderMembers();
+  renderTopicsGrid();
   renderTimeline();
   renderReactions();
-  document.getElementById('hall-meta').textContent = `${members.length}人が参加中`;
 }
 
 function renderMembers() {
   document.getElementById('member-count').textContent = members.length;
   const list = document.getElementById('members-list');
-  if (members.length === 0) {
-    list.innerHTML = '<div style="font-size:13px;color:var(--warm-gray);padding:8px 0;">まだ誰もいません</div>';
-    return;
-  }
-  list.innerHTML = [...members].reverse().map(m =>
-    `<div class="member-item">
-      <div class="avatar">${m.name.slice(0,2)}</div>
-      <div class="member-info">
-        <div class="member-name">${m.name}</div>
-        <div class="member-org">${m.org || ''}</div>
-        <div class="member-theme">${m.theme}</div>
+  list.innerHTML = members.map(m => {
+    const c = hueFor(m.name);
+    return `
+      <div class="member-item">
+        <div class="member-icon" style="border-color:${c}66;box-shadow:0 0 10px ${c}33;color:${c};">
+          ${m.name.charAt(0)}
+        </div>
+        <div style="min-width:0;flex:1;">
+          <div class="member-name">${m.name}${m.alias ? ` <span class="member-alias" style="color:${c};">"${m.alias}"</span>` : ''}</div>
+          <div class="member-org">${m.org || ''}</div>
+        </div>
       </div>
-    </div>`
-  ).join('');
-}
-
-function renderReactions() {
-  const bar = document.getElementById('reactions-bar');
-  bar.innerHTML = REACTION_DEFS.map(r => {
-    const count = (reactions[r.emoji] || 0);
-    return `<button class="reaction-btn" onclick="addReaction('${r.emoji}')">
-      <span style="font-size:18px;">${r.emoji}</span>
-      <span>${r.label}</span>
-      ${count > 0 ? `<span class="reaction-count">${count}</span>` : ''}
-    </button>`;
+    `;
   }).join('');
 }
 
-async function addReaction(emoji) {
-  const r = await loadData(REACTIONS_KEY, {});
-  r[emoji] = (r[emoji] || 0) + 1;
-  await saveData(REACTIONS_KEY, r);
-
-  const tl = await loadData(TIMELINE_KEY);
-  tl.push({ type: 'reaction', name: myName || '匿名', emoji, at: Date.now() });
-  await saveData(TIMELINE_KEY, tl);
-
-  reactions = r;
-  timeline = tl;
-  renderReactions();
-  renderTimeline();
+function renderTopicsGrid() {
+  const grid = document.getElementById('topics-grid');
+  if (allTopics.length === 0) {
+    grid.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;padding:20px;">まだお題がありません</div>';
+    return;
+  }
+  grid.innerHTML = allTopics.slice(0, 12).map((t, i) => `
+    <div class="topic-tile">
+      <div class="topic-tile-num">n°${String(i+1).padStart(2,'0')}${t.tag ? ' · ' + t.tag : ''}</div>
+      <div class="topic-tile-title">${t.title}</div>
+      ${t.description ? `<div class="topic-tile-desc">${t.description}</div>` : ''}
+    </div>
+  `).join('');
 }
 
 function renderTimeline() {
-  const el = document.getElementById('timeline');
+  const list = document.getElementById('timeline-list');
   if (timeline.length === 0) {
-    el.innerHTML = '<div class="empty-tl">まだ投稿はありません。最初のコメントを送ろう！</div>';
+    list.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;text-align:center;padding:30px 0;">まだ何もありません</div>';
     return;
   }
-  el.innerHTML = [...timeline].reverse().map(item => {
-    const time = new Date(item.at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    if (item.type === 'join') {
-      return `<div class="tl-item">
-        <div class="tl-avatar">${item.name.slice(0,2)}</div>
-        <div class="tl-content">
-          <div class="tl-meta"><strong>${item.name}</strong>（${item.org || ''}）&nbsp;${time}</div>
-          <div class="tl-text">チェックイン！今夜のお題：「${item.theme}」</div>
-        </div>
-      </div>`;
-    } else if (item.type === 'reaction') {
-      return `<div class="tl-item">
-        <div class="tl-avatar">${item.name.slice(0,2)}</div>
-        <div class="tl-content">
-          <div class="tl-meta"><strong>${item.name}</strong>&nbsp;${time}</div>
-          <div class="tl-text tl-reaction">${item.emoji}</div>
-        </div>
-      </div>`;
-    } else {
-      return `<div class="tl-item">
-        <div class="tl-avatar">${item.name.slice(0,2)}</div>
-        <div class="tl-content">
-          <div class="tl-meta"><strong>${item.name}</strong>&nbsp;${time}</div>
-          <div class="tl-text">${item.text}</div>
-        </div>
-      </div>`;
+  list.innerHTML = timeline.map(item => {
+    const time = new Date(item.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    const c = hueFor(item.who);
+    let body = '';
+    if (item.kind === 'checkin') {
+      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><span style="color:var(--ink-dim);"> がご来店</span>`;
+    } else if (item.kind === 'reaction') {
+      const tcol = item.target ? hueFor(item.target) : 'var(--ink-dim)';
+      body = `<span style="font-size:14px;margin-right:4px;">${item.emoji}</span><b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><span style="color:var(--ink-dim);"> → </span><b style="color:${tcol};">${item.target || 'みんな'}</b>`;
+    } else if (item.kind === 'comment') {
+      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;color:var(--ink);">${item.text}</div>`;
     }
+    return `
+      <div class="tl-item rise">
+        <div class="tl-time">${time}</div>
+        <div class="tl-body">${body}</div>
+      </div>
+    `;
   }).join('');
 }
 
-const commentInput = document.getElementById('comment-input');
-commentInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendComment(); });
+function renderReactions() {
+  const grid = document.getElementById('reactions-grid');
+  grid.innerHTML = REACTIONS.map(r => `
+    <button class="reaction-btn" onclick="sendReaction('${r.e}')">
+      ${r.e} <span class="reaction-btn-label">${r.label}</span>
+    </button>
+  `).join('');
+}
 
+// ════════════════════════════════════
+// SEND ACTIONS
+// ════════════════════════════════════
 async function sendComment() {
-  const text = commentInput.value.trim();
+  const input = document.getElementById('comment-input');
+  const text = input.value.trim();
   if (!text) return;
-  commentInput.value = '';
-  const tl = await loadData(TIMELINE_KEY);
-  tl.push({ type: 'comment', name: myName || '匿名', text, at: Date.now() });
-  await saveData(TIMELINE_KEY, tl);
-  timeline = tl;
-  renderTimeline();
+  input.value = '';
+  const { error } = await supabase.from('timeline').insert([{
+    kind: 'comment',
+    who: myName,
+    text,
+  }]);
+  if (error) { console.error(error); alert('送信失敗'); }
 }
 
-/* ── polling ── */
-function startPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(loadAll, 8000);
+async function sendReaction(emoji) {
+  const { error } = await supabase.from('timeline').insert([{
+    kind: 'reaction',
+    who: myName,
+    emoji,
+    target: 'みんな',
+  }]);
+  if (error) console.error(error);
 }
 
-/* ── storage helpers ── */
-async function loadData(key, fallback = []) {
-  try {
-    const r = await window.storage.get(key, true);
-    return r && r.value ? JSON.parse(r.value) : fallback;
-  } catch(e) { return fallback; }
+// ════════════════════════════════════
+// REALTIME SUBSCRIPTIONS
+// ════════════════════════════════════
+function setupRealtime() {
+  supabase.channel('craft-night')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'participants' }, () => loadAll())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'topics' }, () => loadAll())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'timeline' }, () => loadAll())
+    .subscribe();
 }
 
-async function saveData(key, val) {
-  try { await window.storage.set(key, JSON.stringify(val), true); } catch(e) {}
+// ════════════════════════════════════
+// LIVE CLOCK
+// ════════════════════════════════════
+function startClock() {
+  const update = () => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const el = document.getElementById('live-time');
+    if (el) el.textContent = `${hh}:${mm} · LIVE`;
+  };
+  update();
+  setInterval(update, 30000);
 }
+
+// Comment input enter handler (only via send button now per request)
+document.getElementById('comment-input').addEventListener('keydown', (e) => {
+  // Per user request: do NOT send on Enter, only via "送る" button
+  // (intentionally empty)
+});
 </script>
 </body>
 </html>
