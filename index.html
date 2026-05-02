@@ -542,17 +542,58 @@
 
   /* RESPONSIVE */
   @media (max-width: 900px) {
-    #page-venue { grid-template-columns: 1fr; height: auto; }
-    .venue-sidebar, .venue-timeline { border: none; border-bottom: .5px solid var(--rule); }
+    #page-venue {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto 1fr;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .venue-header { grid-column: 1; }
     .topics-grid { grid-template-columns: 1fr; }
     #page-lp, #page-checkin, #page-topics { padding: 32px 20px; }
+
+    /* タブバー */
+    .mobile-tabs {
+      display: flex;
+      border-bottom: .5px solid var(--rule);
+      background: var(--bg);
+    }
+    .mobile-tab {
+      flex: 1; padding: 10px 4px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+      color: var(--ink-dim); text-align: center;
+      background: none; border: none; cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    .mobile-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* スライドコンテナ */
+    .mobile-panels-wrap {
+      display: flex; flex: 1; overflow: hidden;
+      transition: transform .25s cubic-bezier(.4,0,.2,1);
+    }
+    .mobile-panel {
+      min-width: 100%; height: 100%;
+      overflow-y: auto; padding: 16px 16px 0;
+      box-sizing: border-box;
+    }
+    /* タイムラインパネルはinput固定分の余白 */
+    .mobile-panel.panel-timeline { padding-bottom: 170px; }
+
+    /* デスクトップ用要素を非表示 */
+    .venue-sidebar, .venue-main, .venue-timeline { display: none !important; }
+
+    /* 固定入力エリア */
     .timeline-input-area {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: var(--bg);
       border-top: .5px solid var(--rule);
       z-index: 100;
     }
-    .timeline-list { padding-bottom: 170px; }
+  }
+  @media (min-width: 901px) {
+    .mobile-tabs, .mobile-panels-wrap { display: none; }
   }
 </style>
 </head>
@@ -659,6 +700,29 @@
     </div>
   </div>
 
+  <!-- モバイル用タブ -->
+  <div class="mobile-tabs">
+    <button class="mobile-tab" onclick="switchTab(0)">参加者</button>
+    <button class="mobile-tab" onclick="switchTab(1)">お題</button>
+    <button class="mobile-tab active" onclick="switchTab(2)">タイムライン</button>
+  </div>
+
+  <!-- モバイル用スライドパネル -->
+  <div class="mobile-panels-wrap" id="mobile-panels">
+    <div class="mobile-panel">
+      <div class="section-mono-label">参加者</div>
+      <div id="members-list-mobile"></div>
+    </div>
+    <div class="mobile-panel">
+      <div class="mono" style="font-size:10px;color:var(--accent);letter-spacing:.25em;font-weight:600;margin-bottom:12px;">本日のテーマ</div>
+      <div id="topics-grid-mobile" class="topics-grid"></div>
+    </div>
+    <div class="mobile-panel panel-timeline">
+      <div id="timeline-list-mobile"></div>
+    </div>
+  </div>
+
+  <!-- デスクトップ用（モバイルでは非表示） -->
   <div class="venue-sidebar">
     <div class="section-mono-label">参加者</div>
     <div id="members-list"></div>
@@ -945,8 +1009,7 @@ async function loadAll() {
 
 function renderMembers() {
   document.getElementById('member-count').textContent = members.length;
-  const list = document.getElementById('members-list');
-  list.innerHTML = members.map(m => {
+  const html = members.map(m => {
     const c = hueFor(m.name);
     return `
       <div class="member-item">
@@ -960,21 +1023,24 @@ function renderMembers() {
       </div>
     `;
   }).join('');
+  document.getElementById('members-list').innerHTML = html;
+  const mob = document.getElementById('members-list-mobile');
+  if (mob) mob.innerHTML = html;
 }
 
 function renderTopicsGrid() {
-  const grid = document.getElementById('topics-grid');
-  if (allTopics.length === 0) {
-    grid.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;padding:20px;">まだお題がありません</div>';
-    return;
-  }
-  grid.innerHTML = allTopics.slice(0, 12).map((t, i) => `
-    <div class="topic-tile">
-      <div class="topic-tile-num">n°${String(i+1).padStart(2,'0')}${t.tag ? ' · ' + t.tag : ''}</div>
-      <div class="topic-tile-title">${t.title}</div>
-      ${t.description ? `<div class="topic-tile-desc">${t.description}</div>` : ''}
-    </div>
-  `).join('');
+  const html = allTopics.length === 0
+    ? '<div style="color:var(--ink-faint);font-size:13px;padding:20px;">まだお題がありません</div>'
+    : allTopics.slice(0, 12).map((t, i) => `
+        <div class="topic-tile">
+          <div class="topic-tile-num">n°${String(i+1).padStart(2,'0')}${t.tag ? ' · ' + t.tag : ''}</div>
+          <div class="topic-tile-title">${t.title}</div>
+          ${t.description ? `<div class="topic-tile-desc">${t.description}</div>` : ''}
+        </div>
+      `).join('');
+  document.getElementById('topics-grid').innerHTML = html;
+  const mob = document.getElementById('topics-grid-mobile');
+  if (mob) mob.innerHTML = html;
 }
 
 function linkify(text) {
@@ -983,30 +1049,26 @@ function linkify(text) {
 }
 
 function renderTimeline() {
+  const html = timeline.length === 0
+    ? '<div style="color:var(--ink-faint);font-size:13px;text-align:center;padding:30px 0;">まだ何もありません</div>'
+    : timeline.map(item => {
+        const time = new Date(item.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        const c = hueFor(item.who);
+        let body = '';
+        if (item.kind === 'checkin') {
+          body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><span style="color:var(--ink-dim);"> がご来訪</span>`;
+        } else if (item.kind === 'reaction') {
+          body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;font-size:18px;">${item.emoji}</div>`;
+        } else if (item.kind === 'comment') {
+          body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;color:var(--ink);">${linkify(item.text)}</div>`;
+        }
+        return `<div class="tl-item rise"><div class="tl-time">${time}</div><div class="tl-body">${body}</div></div>`;
+      }).join('');
   const list = document.getElementById('timeline-list');
-  if (timeline.length === 0) {
-    list.innerHTML = '<div style="color:var(--ink-faint);font-size:13px;text-align:center;padding:30px 0;">まだ何もありません</div>';
-    return;
-  }
-  list.innerHTML = timeline.map(item => {
-    const time = new Date(item.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-    const c = hueFor(item.who);
-    let body = '';
-    if (item.kind === 'checkin') {
-      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><span style="color:var(--ink-dim);"> がご来訪</span>`;
-    } else if (item.kind === 'reaction') {
-      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;font-size:18px;">${item.emoji}</div>`;
-    } else if (item.kind === 'comment') {
-      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;color:var(--ink);">${linkify(item.text)}</div>`;
-    }
-    return `
-      <div class="tl-item rise">
-        <div class="tl-time">${time}</div>
-        <div class="tl-body">${body}</div>
-      </div>
-    `;
-  }).join('');
+  list.innerHTML = html;
   list.scrollTop = list.scrollHeight;
+  const mob = document.getElementById('timeline-list-mobile');
+  if (mob) { mob.innerHTML = html; mob.scrollTop = mob.scrollHeight; }
 }
 
 function renderReactions() {
@@ -1068,6 +1130,45 @@ function startClock() {
   update();
   setInterval(update, 30000);
 }
+
+// ════════════════════════════════════
+// MOBILE TAB / SWIPE
+// ════════════════════════════════════
+let currentTab = 2;
+
+function switchTab(idx) {
+  currentTab = idx;
+  const panels = document.getElementById('mobile-panels');
+  if (panels) panels.style.transform = `translateX(${-idx * 100}%)`;
+  document.querySelectorAll('.mobile-tab').forEach((t, i) => {
+    t.classList.toggle('active', i === idx);
+  });
+}
+
+(function initSwipe() {
+  const wrap = document.getElementById('mobile-panels');
+  if (!wrap) return;
+  let startX = 0, startY = 0, locked = false;
+  wrap.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    locked = false;
+  }, { passive: true });
+  wrap.addEventListener('touchend', e => {
+    if (locked) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0 && currentTab < 2) switchTab(currentTab + 1);
+    if (dx > 0 && currentTab > 0) switchTab(currentTab - 1);
+  }, { passive: true });
+  wrap.addEventListener('touchmove', e => {
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    const dy = Math.abs(e.touches[0].clientY - startY);
+    if (!locked && dy > dx) locked = true;
+  }, { passive: true });
+  switchTab(2);
+})();
 
 // セッション復元（ブラウザを閉じても当日分があれば会場画面へ）
 (function restoreSession() {
