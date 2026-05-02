@@ -932,7 +932,7 @@ async function loadAll() {
   const [pRes, tRes, lRes] = await Promise.all([
     sb.from('participants').select('*').order('created_at', { ascending: false }),
     sb.from('topics').select('*').order('created_at', { ascending: false }),
-    sb.from('timeline').select('*').order('created_at', { ascending: false }).limit(50),
+    sb.from('timeline').select('*').order('created_at', { ascending: true }).limit(50),
   ]);
   members = pRes.data || [];
   allTopics = tRes.data || [];
@@ -1006,6 +1006,7 @@ function renderTimeline() {
       </div>
     `;
   }).join('');
+  list.scrollTop = list.scrollHeight;
 }
 
 function renderReactions() {
