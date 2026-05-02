@@ -965,6 +965,11 @@ function renderTopicsGrid() {
   `).join('');
 }
 
+function linkify(text) {
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">$1</a>');
+}
+
 function renderTimeline() {
   const list = document.getElementById('timeline-list');
   if (timeline.length === 0) {
@@ -980,7 +985,7 @@ function renderTimeline() {
     } else if (item.kind === 'reaction') {
       body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;font-size:18px;">${item.emoji}</div>`;
     } else if (item.kind === 'comment') {
-      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;color:var(--ink);">${item.text}</div>`;
+      body = `<b class="tl-who" style="color:${c};text-shadow:0 0 8px ${c}55;">${item.who}</b><div style="margin-top:3px;color:var(--ink);">${linkify(item.text)}</div>`;
     }
     return `
       <div class="tl-item rise">
