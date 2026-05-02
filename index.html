@@ -901,6 +901,10 @@ async function finalizeCheckin() {
     }]);
     if (lErr) throw lErr;
 
+    localStorage.setItem('craft-night-session', JSON.stringify({
+      name: myName, org: myOrg, alias: myAlias, keywords: myKeywords,
+      date: new Date().toDateString(),
+    }));
     showPage('venue');
     await loadAll();
     setupRealtime();
@@ -1055,6 +1059,24 @@ function startClock() {
   update();
   setInterval(update, 30000);
 }
+
+// セッション復元（ブラウザを閉じても当日分があれば会場画面へ）
+(function restoreSession() {
+  try {
+    const saved = localStorage.getItem('craft-night-session');
+    if (!saved) return;
+    const s = JSON.parse(saved);
+    if (s.date !== new Date().toDateString()) {
+      localStorage.removeItem('craft-night-session');
+      return;
+    }
+    myName = s.name; myOrg = s.org; myAlias = s.alias; myKeywords = s.keywords || [];
+    showPage('venue');
+    loadAll();
+    setupRealtime();
+    startClock();
+  } catch (e) { localStorage.removeItem('craft-night-session'); }
+})();
 
 // Comment input enter handler (only via send button now per request)
 document.getElementById('comment-input').addEventListener('keydown', (e) => {
