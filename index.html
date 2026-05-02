@@ -740,11 +740,15 @@ kwInput.addEventListener('compositionend', () => {
 });
 
 kwInput.addEventListener('keydown', (e) => {
-  // IME変換中のEnterは無視
-  if (e.key !== 'Enter') return;
   if (isComposing || e.isComposing || e.keyCode === 229) return;
-  e.preventDefault();
-  addKw();
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addKw();
+  } else if (e.key === ' ' || e.key === ',' || e.key === '、' || e.key === '，') {
+    // 英数字入力時はスペース・カンマでも確定
+    e.preventDefault();
+    addKw();
+  }
 });
 
 function addKw() {
@@ -778,6 +782,7 @@ function renderKeywords() {
 // GENERATE TOPICS (via Edge Function)
 // ════════════════════════════════════
 async function generateTopics() {
+  addKw(); // 入力欄に残っている文字列を自動タグ化
   myName = document.getElementById('ci-name').value.trim();
   myOrg = document.getElementById('ci-org').value.trim();
   if (!myName) { alert('名前を入力してください'); return; }
